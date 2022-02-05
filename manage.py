@@ -8,7 +8,7 @@ from uwcsvote.utils import PermsError
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'uwcsvote.settings.production')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'uwcsvote.settings.dev')
     if "migrat" in sys.argv[1]:
         PermsError.suppress()
     try:
