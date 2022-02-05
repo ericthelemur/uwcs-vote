@@ -43,9 +43,9 @@ UWCS Vote uses django-allauth to operate a single sign-on system with the UWCS w
    3. Redirect URLs: follow the format of `http(s)://yourdomain.com/accounts/uwcs/login/callback/`
    4. Client type: Public
    5. Authorisation grant type: Authorisation code
-   6. Name: Harmony
-2. Edit the "example.com" site in the Django admin in Harmony, with the domain as your domain (e.g. `localhost:8000`) and give it a useful label.
-3. Create a "social application" in the Django admin in Harmony.
+   6. Name: UWCS Vote
+2. Edit the "example.com" site in the Django admin in UWCS Vote, with the domain as your domain (e.g. `localhost:8000`) and give it a useful label.
+3. Create a "social application" in the Django admin in UWCS Vote.
    1. Provider: UWCS
    2. Name: UWCS Website
    3. Client id: copy from your new application
