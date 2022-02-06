@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import django.db.utils
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth.models import Permission
 from django.db import models
@@ -34,14 +35,17 @@ class Permissions:
     def __init__(self):
         self.apps = {}
 
-        perms = Permission.objects.all()
-        for perm in perms:
-            app = perm.content_type.app_label
-            if app not in self.apps:
-                self.apps[app] = Permissions.AppPermissions(app)
-            self.apps[app].register(perm.codename)
-        for i in self.apps.values():
-            i.finalise()
+        try:
+            perms = Permission.objects.all()
+            for perm in perms:
+                app = perm.content_type.app_label
+                if app not in self.apps:
+                    self.apps[app] = Permissions.AppPermissions(app)
+                self.apps[app].register(perm.codename)
+            for i in self.apps.values():
+                i.finalise()
+        except django.db.utils.ProgrammingError:
+            pass
 
     @classmethod
     def get(cls):
