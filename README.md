@@ -25,7 +25,7 @@ UWCS Vote is built and tested against Python 3.8/3.9, using Django as the web fr
     On postgres:
     - `CREATE USER uwcs_vote WITH PASSWORD 'password';`
     - `CREATE DATABASE uwcs_vote WITH ONWER = uwcs_vote;`
-7. Prepare the database by running migrations with `python manage.py migrate auth` and then `python manage.py migrate`.
+7. Prepare the database by running migrations with `python manage.py migrate`.
 8. Create a superuser for the site with `python manage.py createsuperuser`.
 9. Create the configuration file(s) for the web server of your choosing (do not worry about this step if you are running locally).
     
