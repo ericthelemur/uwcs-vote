@@ -2,7 +2,7 @@ import secrets
 from enum import Enum
 from fractions import Fraction
 from operator import itemgetter, attrgetter
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple, Set, Callable
 
 """
 STV calculator
@@ -37,6 +37,7 @@ class Candidate:
         self.id = id_
         self.status = States.HOPEFUL
         self.keep_factor: Fraction = Fraction(1)
+        self.history = []
 
     def __str__(self):
         return f"{self.id}: {self.status} ({str(self.keep_factor)})"
@@ -63,8 +64,13 @@ class Vote:
         return "Vote" + self.__str__()
 
 
+TieFunc = Callable[[List[Candidate]], List[Candidate]]
+
 class Election:
-    def __init__(self, candidates: Set[int], votes: List[Tuple[int]], seats: int):
+    def __init__(self, candidates: Set[int], votes: List[Tuple[int]], seats: int, tiebreaking: List[TieFunc]=None):
+        if tiebreaking is None: tiebreaking = [self.backward_tiebreak, self.random_tiebreak]
+        self.tiebreaking_methods = tiebreaking
+
         self.candidatedict = {i: Candidate(i) for i in candidates}
         self.candidates = set(self.candidatedict.values())
         self.votes = [Vote(self.candidatedict, i) for i in votes]
@@ -113,6 +119,9 @@ class Election:
         # Check all votes accounted for
         assert wastage + sum(scores.values()) == len(self.votes)
 
+        for c in self.candidates:
+            c.history.append(scores[c])
+
         # B2b
         quota = Fraction(sum(scores.values()), self.seats + 1)
 
@@ -152,14 +161,24 @@ class Election:
         self._log(scores, wastage)
 
     def _choose(self, candidates):
-        if len(candidates) > 1:
-            a = secrets.choice(candidates)[0]
-            self._addlog("-Tiebreak-")
-            self._addlog(a)
-            self._addlog()
-        else:
-            a = candidates[0][0]
-        return a
+        candidates = [c for c, _ in candidates]
+        assert len(self.tiebreaking_methods) > 1
+
+        worst = None
+        for method in self.tiebreaking_methods:
+            if len(candidates) == 1:
+                worst = candidates[0]
+                break
+            candidates = method(candidates)
+
+        if worst is None:
+            if len(candidates) == 1: worst = candidates[0]
+            else: worst = self.random_tiebreak(candidates)[0]
+
+        self._addlog("-Tiebreak-")
+        self._addlog(worst)
+        self._addlog()
+        return worst
 
     def _addlog(self, *args):
         string = " ".join(map(str, args))
@@ -201,6 +220,46 @@ class Election:
 
     def winners(self):
         return map(attrgetter('id'), filter(lambda x: x.status == States.ELECTED, self.candidates))
+
+
+    ################# Tiebreaking #######################
+    # Tiebreaking methods from https://journal.r-project.org/archive/2021/RJ-2021-086/RJ-2021-086.pdf
+
+    def get_worst_candidates(self, scores: Dict[Candidate, Fraction]):
+        """Picks worst candidate given scores in the provided dict. Very similar to B3"""
+        sorted_results = sorted(scores.items(), key=itemgetter(1))
+        _, min_score = sorted_results[0]
+
+        worst_candidates = list(filter(lambda x: x[1] <= min_score, sorted_results))
+        return [c for c, s in worst_candidates]
+
+    def history_checks(self, tied_candidates: List[Candidate]):
+        history_size = len(tied_candidates[0].history)
+        assert all(
+            len(c.history) == history_size for c in tied_candidates)  # Ensure equal history (should never be a problem)
+        assert all(c.status == States.HOPEFUL for c in
+                   tied_candidates)  # Ensure all candidates are hopeful (should be input to)
+
+    def forward_tiebreak(self, tied_candidates: List[Candidate]) -> List[Candidate]:
+        self._addlog("f")
+        self.history_checks(tied_candidates)
+        scored_results = {c: list(c.history) for c in tied_candidates}
+        return self.get_worst_candidates(scored_results)
+
+    def backward_tiebreak(self, tied_candidates: List[Candidate]) -> List[Candidate]:
+        self._addlog("b")
+        self.history_checks(tied_candidates)
+        scored_results = {c: list(reversed(c.history)) for c in tied_candidates}
+        return self.get_worst_candidates(scored_results)
+
+    def ordered_tiebreak(self, tied_candidates: List[Candidate]) -> List[Candidate]:
+        self._addlog("o")
+        raise NotImplemented()
+        return tied_candidates
+
+    def random_tiebreak(self, tied_candidates: List[Candidate]) -> List[Candidate]:
+        self._addlog("r")
+        return [secrets.choice(tied_candidates)]
 
 
 def fptp_equivalent():
@@ -267,5 +326,11 @@ def malformed2():
     e.full_election()
 
 
+def tiebreaker2():
+    c = {1, 2, 3, 4}
+    v = [(1,), (2,), (3,), (4,)]
+    e = Election(c, v, 1)
+    e.full_election()
+
 if __name__ == '__main__':
-    delayed_majority()
+    tiebreaker()
